@@ -1,0 +1,14 @@
+{
+    "applications": {
+        "_default": {
+            "link": "testDance"
+        }, 
+        "testDance": {
+            "applicationId": "P81D5qUxaGxS7h6gpLI7vBruZuTh9Z5EA97hon15", 
+            "masterKey": "EFqM40fx4nU9bI8boJgiBZLHcIGzIjRnLJnetc6w"
+        }
+    }, 
+    "global": {
+        "parseVersion": "1.2.16"
+    }
+}
