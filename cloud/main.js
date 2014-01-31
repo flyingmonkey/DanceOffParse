@@ -45,14 +45,18 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
   query.find({
     success: function(results) {
       var match = results[0];
-      match.increment("matchSemaphore", 1);
-      match.save().then(function(result) {
-        if (match == null || match.get("matchSemaphore") > 1) {
-          return response.error("no game available");
-        } else {
-          return response.success(match);
-        }
-      });
+      if (match == null) {
+        return response.error("no game available");
+      } else {
+        match.increment("matchSemaphore", 1);
+        match.save().then(function(result) {
+          if (match == null || match.get("matchSemaphore") > 1) {
+            return response.error("no game available");
+          } else {
+            return response.success(match);
+          }
+        });
+      }
     },
     error: function() {
       response.error("no game available");
