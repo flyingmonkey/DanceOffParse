@@ -119,22 +119,20 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
 
 Parse.Cloud.job("generateReport", function(request, response) {
 
-  console.log("entered generateReport");
+  console.log("Generating report...");
 
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
 
   var query = new Parse.Query("GameSubClass");
 
-  var gamesStarted = 0;
+  var gamesStartedAndNotCompleted = 0;
   var gamesCompleted = 0;
   var gamesStartedAndCompleted = 0;
   var highestScore = 0;
   var highestScoreUsername = "";
   var completedGameScoreSum = 0;
  
-  console.log("generateReport initialized variables");
-
   var now = new Date(); // gets today
   var yesterday = new Date(now - 1000 * 60 * 60 * 24 * 1); 
   query.greaterThan("updatedAt", yesterday);
@@ -146,10 +144,10 @@ Parse.Cloud.job("generateReport", function(request, response) {
 
   query.each(function(game) {
        
-      console.log("Found game with id " + game.id);
+      // console.log("Found game with id " + game.id);
 
       var status = game.get("status");
-      var createdAt = game.get("createdAt");
+      var createdAt = game.createdAt;
 
       if (status == "completed") {
         gamesCompleted++;
@@ -170,17 +168,17 @@ Parse.Cloud.job("generateReport", function(request, response) {
           else
             completedGameScoreSum = completedGameScoreSum + challengeeScore; 
         }
-        console.log("createdAt=" + createdAt + " yesterday=" + yesterday); 
+
         if (createdAt > yesterday)
           gamesStartedAndCompleted++;
       } else if (status == "challenged") {
-        gamesStarted++;
+        gamesStartedAndNotCompleted++;
       }
 
   }).then(function() {
 
     // Set the job's success status
-    var gamesStartedStr = "Games started: " + gamesStarted; 
+    var gamesStartedAndNotCompletedStr = "Games started but not completed: " + gamesStartedAndNotCompleted; 
     var gamesCompletedStr = "Games completed: " + gamesCompleted;
     var gamesStartedAndCompletedStr = "Games started and completed: " + gamesStartedAndCompleted;
     var highestScoreStr = "Highest score: " + highestScore;
@@ -188,7 +186,7 @@ Parse.Cloud.job("generateReport", function(request, response) {
     var completedGameScoreSumStr = "Average score: " + (completedGameScoreSum / gamesCompleted);
 
     console.log("Daily report:");
-    console.log(gamesStartedStr);
+    console.log(gamesStartedAndNotCompletedStr);
     console.log(gamesCompletedStr);
     console.log(gamesStartedAndCompletedStr);
     console.log(highestScoreStr);
