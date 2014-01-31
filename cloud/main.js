@@ -116,3 +116,94 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
     response.error("Was not able to update Dance Dollars.");
   });
 });
+
+Parse.Cloud.job("generateReport", function(request, response) {
+
+  console.log("entered generateReport");
+
+  // Set up to modify user data
+  Parse.Cloud.useMasterKey();
+
+  var query = new Parse.Query("GameSubClass");
+
+  var gamesStarted = 0;
+  var gamesCompleted = 0;
+  var gamesStartedAndCompleted = 0;
+  var highestScore = 0;
+  var highestScoreUsername = "";
+  var completedGameScoreSum = 0;
+ 
+  console.log("generateReport initialized variables");
+
+  var now = new Date(); // gets today
+  var yesterday = new Date(now - 1000 * 60 * 60 * 24 * 1); 
+  query.greaterThan("updatedAt", yesterday);
+
+  // query.equalTo("status", "challenged");
+  // query.notEqualTo("challengerFBId", fbId);
+  // query.equalTo("matchSemaphore", 0);
+  // query.equalTo("objectId", "htpDqGRI6Qa");
+
+  query.each(function(game) {
+       
+      console.log("Found game with id " + game.id);
+
+      var status = game.get("status");
+      var createdAt = game.get("createdAt");
+
+      if (status == "completed") {
+        gamesCompleted++;
+        var challengerScore = game.get("challengerScore");
+        var challengeeScore = game.get("challengeeScore");
+   
+        if (challengerScore > highestScore) {
+          highestScore = challengerScore;
+          highestScoreUsername = game.get("challengerUsername");
+        } else if (challengeeScore > highestScore) {
+          highestScore = challengeeScore;
+          highestScoreUsername = game.get("challengeUsername");
+        }
+
+        if (challengerScore > 0 && challengeeScore > 0) {
+          if (challengerScore > challengeeScore)
+            completedGameScoreSum = completedGameScoreSum + challengerScore; 
+          else
+            completedGameScoreSum = completedGameScoreSum + challengeeScore; 
+        }
+        console.log("createdAt=" + createdAt + " yesterday=" + yesterday); 
+        if (createdAt > yesterday)
+          gamesStartedAndCompleted++;
+      } else if (status == "challenged") {
+        gamesStarted++;
+      }
+
+  }).then(function() {
+
+    // Set the job's success status
+    var gamesStartedStr = "Games started: " + gamesStarted; 
+    var gamesCompletedStr = "Games completed: " + gamesCompleted;
+    var gamesStartedAndCompletedStr = "Games started and completed: " + gamesStartedAndCompleted;
+    var highestScoreStr = "Highest score: " + highestScore;
+    var highestScoreUsernameStr = "Highest score username: " + highestScoreUsername;
+    var completedGameScoreSumStr = "Average score: " + (completedGameScoreSum / gamesCompleted);
+
+    console.log("Daily report:");
+    console.log(gamesStartedStr);
+    console.log(gamesCompletedStr);
+    console.log(gamesStartedAndCompletedStr);
+    console.log(highestScoreStr);
+    console.log(highestScoreUsernameStr);
+    console.log(completedGameScoreSumStr);
+
+    response.success("Successfully completed generateReport.");
+  }, function(error) {
+
+    // Set the job's error status
+    console.log("generateReport error");
+
+    response.error("generateReport failed");
+  });
+
+});
+
+
