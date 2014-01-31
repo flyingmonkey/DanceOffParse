@@ -47,7 +47,7 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
       var match = results[0];
       match.increment("matchSemaphore", 1);
       match.save().then(function(result) {
-        if (match.get("matchSemaphore") > 1) {
+        if (match == null || match.get("matchSemaphore") > 1) {
           return response.error("no game available");
         } else {
           return response.success(match);
@@ -91,7 +91,7 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
 
       oldDollars = user.get("dollars");
       var quantityInt = parseInt(quantity);
-      newDollars = bonus(quantityInt);
+      newDollars = oldDollars + bonus(quantityInt);
 
       user.set("dollars", newDollars);
       user.save();
