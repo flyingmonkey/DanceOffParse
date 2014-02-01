@@ -136,6 +136,7 @@ Parse.Cloud.job("generateReport", function(request, response) {
   var highestScore = 0;
   var highestScoreUsername = "";
   var completedGameScoreSum = 0;
+  var gameMsgText = "";
  
   var now = new Date(); // gets today
   var yesterday = new Date(now - 1000 * 60 * 60 * 24 * 1); 
@@ -184,9 +185,11 @@ Parse.Cloud.job("generateReport", function(request, response) {
     var highestScoreUsernameStr = "Highest score username: " + highestScoreUsername + '\n';
     var completedGameAvgScoreStr = "Average score: " + Math.floor(completedGameScoreSum / gamesCompleted) + '\n';
 
-    var gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr; 
+    gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr; 
  
     console.log(gameMsgText);
+
+  }).then(function() {
 
     console.log("About to query users");
     var usersTotal = 0;
