@@ -101,6 +101,15 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
       user.set("dollars", newDollars);
       user.save();
 
+      var Transaction = Parse.Object.extend("Transaction");
+      var transaction = new Transaction();
+      transaction.set("type", "purchase");
+      transaction.set("dd_spent", 0); 
+      transaction.set("dd_bought", quantityInt);
+      transaction.set("dd_total", newDollars);
+      transaction.set("username", username);
+      transaction.save();
+ 
   }).then(function() {
 
     // Set the job's success status
@@ -125,10 +134,13 @@ Parse.Cloud.job("generateReport", function(request, response) {
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
 
-  var Mailgun = require('mailgun');
-  Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
+  reportAll(response);
 
-  var query = new Parse.Query("GameSubClass");
+});
+
+function reportAll(response) {
+  console.log("Called reportAll");
+  var query = new Parse.Query("Game");
 
   var gamesStartedAndNotCompleted = 0;
   var gamesCompleted = 0;
@@ -137,13 +149,13 @@ Parse.Cloud.job("generateReport", function(request, response) {
   var highestScoreUsername = "";
   var completedGameScoreSum = 0;
   var gameMsgText = "";
- 
+
   var now = new Date(); // gets today
-  var yesterday = new Date(now - 1000 * 60 * 60 * 24 * 1); 
+  var yesterday = new Date(now - 1000 * 60 * 60 * 24 * 1);
   query.greaterThan("updatedAt", yesterday);
 
   query.each(function(game) {
-       
+
       // console.log("Found game with id " + game.id);
 
       var status = game.get("status");
@@ -153,7 +165,7 @@ Parse.Cloud.job("generateReport", function(request, response) {
         gamesCompleted++;
         var challengerScore = game.get("challengerScore");
         var challengeeScore = game.get("challengeeScore");
-   
+
         if (challengerScore > highestScore) {
           highestScore = challengerScore;
           highestScoreUsername = game.get("challengerUsername");
@@ -164,9 +176,9 @@ Parse.Cloud.job("generateReport", function(request, response) {
 
         if (challengerScore > 0 && challengeeScore > 0) {
           if (challengerScore > challengeeScore)
-            completedGameScoreSum = completedGameScoreSum + challengerScore; 
+            completedGameScoreSum = completedGameScoreSum + challengerScore;
           else
-            completedGameScoreSum = completedGameScoreSum + challengeeScore; 
+            completedGameScoreSum = completedGameScoreSum + challengeeScore;
         }
 
         if (createdAt > yesterday)
@@ -176,85 +188,91 @@ Parse.Cloud.job("generateReport", function(request, response) {
       }
 
   }).then(function() {
-
     // Set the job's success status
-    var gamesStartedAndNotCompletedStr = "Games started but not completed: " + gamesStartedAndNotCompleted + '\n'; 
+    var gamesStartedAndNotCompletedStr = "Games started but not completed: " + gamesStartedAndNotCompleted + '\n';
     var gamesCompletedStr = "Games completed: " + gamesCompleted + '\n';
     var gamesStartedAndCompletedStr = "Games started and completed: " + gamesStartedAndCompleted + '\n';
     var highestScoreStr = "Highest score: " + highestScore + '\n';
     var highestScoreUsernameStr = "Highest score username: " + highestScoreUsername + '\n';
     var completedGameAvgScoreStr = "Average score: " + Math.floor(completedGameScoreSum / gamesCompleted) + '\n';
 
-    gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr; 
- 
+    gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr;
+
     console.log(gameMsgText);
+    reportUsers(response, gameMsgText, now, yesterday);
+
+  }).then(function() {
+    // response.success("Successfully completed generateReport.");
+  }, function(error) {
+
+    // Set the job's error status
+    console.log("game report failed");
+
+    response.error("generateReport failed");
+  });
+}
+
+function reportUsers(response, gameMsgText, now, yesterday) {
+
+  var usersTotal = 0;
+  var usersCreatedToday = 0;
+  var usersUpdatedToday = 0;
+  var usersGames = 0;
+  var usersExperience = 0;
+
+  var query = new Parse.Query("User");
+
+  // console.log("Querying users");
+
+  query.each(function(user) {
+
+      var createdAt = user.createdAt;
+      var updatedAt = user.updatedAt;
+
+      usersTotal++;
+      if (createdAt > yesterday)
+        usersCreatedToday++;
+      if (updatedAt > yesterday)
+        usersUpdatedToday++;
+      if (user.get("games") > 0)
+        usersGames++;
+      if (user.get("experience") > 0)
+        usersExperience++;
 
   }).then(function() {
 
-    console.log("About to query users");
-    var usersTotal = 0;
-    var usersCreatedToday = 0;
-    var usersUpdatedToday = 0;
-    var usersGames = 0;
-    var usersExperience = 0;
-   
-    var query = new Parse.Query("User");
+    // console.log("Got queried users");
 
-    console.log("Querying users...");
+    // Set the job's success status
+    var usersTotalStr = "Users Total: " + usersTotal + '\n';
+    var usersCreatedTodayStr = "Users Created Today: " + usersCreatedToday + '\n';
+    var usersUpdatedTodayStr = "Users Updated Today: " + usersUpdatedToday + '\n';
+    var usersGamesStr = "Users Total Who Have Played At Least One Game: " + usersGames + '\n';
+    var usersExperienceStr = "Users Total Who Have Earned Experience Points: " + usersExperience + '\n';
 
-    query.each(function(user) {
+    var userMsgText = "User Daily Report: " + '\n' + usersTotalStr + usersCreatedTodayStr + usersUpdatedTodayStr + usersGamesStr + usersExperienceStr;
 
-        var createdAt = user.createdAt;
-        var updatedAt = user.updatedAt;
+    console.log(userMsgText);
 
-        usersTotal++;
-        if (createdAt > yesterday)
-          usersCreatedToday++;
-        if (updatedAt > yesterday)
-          usersUpdatedToday++;
-        if (user.get("games") > 0)
-          usersGames++;
-        if (user.get("experience") > 0)
-          usersExperience++;
+    var Mailgun = require('mailgun');
 
-    }).then(function() {
-
-      // Set the job's success status
-      var usersTotalStr = "Users Total: " + usersTotal + '\n';
-      var usersCreatedTodayStr = "Users Created Today: " + usersCreatedToday + '\n';
-      var usersUpdatedTodayStr = "Users Updated Today: " + usersUpdatedToday + '\n';
-      var usersGamesStr = "Users Total Who Have Played At Least One Game: " + usersGames + '\n';
-      var usersExperienceStr = "Users Total Who Have Earned Experience Points: " + usersExperience + '\n';
-
-      var userMsgText = "User Daily Report: " + '\n' + usersTotalStr + usersCreatedTodayStr + usersUpdatedTodayStr + usersGamesStr + usersExperienceStr;
-   
-      console.log(userMsgText);
-
-      Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
-      Mailgun.sendEmail({
-        to: "hamilton@fmigames.com",
-        from: "admin@fmigames.com",
-        subject: "Daily Report for Dance Off Users and Games",
-        text: gameMsgText + '\n' + userMsgText
-      }, {
-        success: function(httpResponse) {
-          console.log(httpResponse);
-          response.success("Report Email sent!");
-        },
-        error: function(httpResponse) {
-          console.error(httpResponse);
-          response.error("Generate Report error while emailing report");
-        }
-      });
-      response.success("Successfully completed generateReport.");
-    }, function(error) {
-
-      // Set the job's error status
-      console.log("generateReport error");
-
-      response.error("generateReport failed");
+    Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
+    Mailgun.sendEmail({
+      to: "hamilton@fmigames.com",
+      from: "admin@fmigames.com",
+      subject: "Daily Report for Dance Off Users and Games",
+      text: "Report Date: " + now + '\n' + gameMsgText + '\n' + userMsgText
+    }, {
+      success: function(httpResponse) {
+        console.log(httpResponse);
+        response.success("Report Email sent!");
+      },
+      error: function(httpResponse) {
+        console.error(httpResponse);
+        response.error("Generate Report error while emailing report");
+      }
     });
-
+    response.success("Successfully completed generateReport.");
   }, function(error) {
 
     // Set the job's error status
@@ -262,6 +280,4 @@ Parse.Cloud.job("generateReport", function(request, response) {
 
     response.error("generateReport failed");
   });
-});
-
-
+}
