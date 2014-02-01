@@ -305,7 +305,7 @@ function reportUsers(response, msgText, now, yesterday) {
 
     Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
     Mailgun.sendEmail({
-      to: "hamilton@fmigames.com",
+      to: "admin@fmigames.com",
       from: "admin@fmigames.com",
       subject: "Daily Report for Dance Off Users and Games",
       text: "Report Date: " + now + '\n' + msgText + '\n' + userMsgText
