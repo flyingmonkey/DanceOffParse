@@ -139,7 +139,6 @@ Parse.Cloud.job("generateReport", function(request, response) {
 });
 
 function reportAll(response) {
-  console.log("Called reportAll");
   var query = new Parse.Query("Game");
 
   var gamesStartedAndNotCompleted = 0;
@@ -199,7 +198,7 @@ function reportAll(response) {
     gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr;
 
     console.log(gameMsgText);
-    reportUsers(response, gameMsgText, now, yesterday);
+    reportTransactions(response, gameMsgText, now, yesterday);
 
   }).then(function() {
     // response.success("Successfully completed generateReport.");
@@ -212,7 +211,55 @@ function reportAll(response) {
   });
 }
 
-function reportUsers(response, gameMsgText, now, yesterday) {
+function reportTransactions(response, msgText, now, yesterday) {
+  var query = new Parse.Query("Transaction");
+
+  var transSpentCount = 0;
+  var transSpentDD = 0;
+  var transBoughtCount = 0;
+  var transBoughtDD = 0;
+
+  query.greaterThan("createdAt", yesterday);
+
+  query.each(function(trans) {
+
+      var ddSpent = trans.get("dd_spent");
+      var ddBought = trans.get("dd_bought"); 
+
+      if (ddSpent > 0) {
+        transSpentCount++;
+        transSpentDD += ddSpent;
+      }
+
+      if (ddBought > 0) {
+        transBoughtCount++;
+        transBoughtDD += ddBought;
+      }
+
+  }).then(function() {
+    // Set the job's success status
+    var transSpentCountStr = "Number of times Dance Dollars spent: " + transSpentCount + '\n'
+    var transSpentDDStr = "Total Dance Dollars spent: " + transSpentDD + '\n'
+    var transBoughtCountStr = "Number of times Dance Dollars bought: " + transBoughtCount + '\n'
+    var transBoughtDDStr = "Total Dance Dollars bought: " + transBoughtDD + '\n'
+
+    msgText = msgText + '\n' + "Transactions Daily Report: " + '\n' + transSpentCountStr + transSpentDDStr + transBoughtCountStr + transBoughtDDStr;
+
+    console.log(msgText);
+    reportUsers(response, msgText, now, yesterday);
+
+  }).then(function() {
+    // response.success("Successfully completed generateReport.");
+  }, function(error) {
+
+    // Set the job's error status
+    console.log("transaction report failed");
+
+    response.error("generateReport failed");
+  });
+}
+
+function reportUsers(response, msgText, now, yesterday) {
 
   var usersTotal = 0;
   var usersCreatedToday = 0;
@@ -261,7 +308,7 @@ function reportUsers(response, gameMsgText, now, yesterday) {
       to: "hamilton@fmigames.com",
       from: "admin@fmigames.com",
       subject: "Daily Report for Dance Off Users and Games",
-      text: "Report Date: " + now + '\n' + gameMsgText + '\n' + userMsgText
+      text: "Report Date: " + now + '\n' + msgText + '\n' + userMsgText
     }, {
       success: function(httpResponse) {
         console.log(httpResponse);
@@ -276,7 +323,7 @@ function reportUsers(response, gameMsgText, now, yesterday) {
   }, function(error) {
 
     // Set the job's error status
-    console.log("generateReport error");
+    console.log("user report failed");
 
     response.error("generateReport failed");
   });
