@@ -1,5 +1,6 @@
 // Use Parse.Cloud.define to define as many cloud functions as you want.
 // For example:
+
 function bonus(amount) {
   switch (amount) {
     case 200:
@@ -124,6 +125,8 @@ Parse.Cloud.job("generateReport", function(request, response) {
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
 
+  var Mailgun = require('mailgun');
+
   var query = new Parse.Query("GameSubClass");
 
   var gamesStartedAndNotCompleted = 0;
@@ -178,21 +181,33 @@ Parse.Cloud.job("generateReport", function(request, response) {
   }).then(function() {
 
     // Set the job's success status
-    var gamesStartedAndNotCompletedStr = "Games started but not completed: " + gamesStartedAndNotCompleted; 
-    var gamesCompletedStr = "Games completed: " + gamesCompleted;
-    var gamesStartedAndCompletedStr = "Games started and completed: " + gamesStartedAndCompleted;
-    var highestScoreStr = "Highest score: " + highestScore;
-    var highestScoreUsernameStr = "Highest score username: " + highestScoreUsername;
-    var completedGameScoreSumStr = "Average score: " + (completedGameScoreSum / gamesCompleted);
+    var gamesStartedAndNotCompletedStr = "Games started but not completed: " + gamesStartedAndNotCompleted + '\n'; 
+    var gamesCompletedStr = "Games completed: " + gamesCompleted + '\n';
+    var gamesStartedAndCompletedStr = "Games started and completed: " + gamesStartedAndCompleted + '\n';
+    var highestScoreStr = "Highest score: " + highestScore + '\n';
+    var highestScoreUsernameStr = "Highest score username: " + highestScoreUsername + '\n';
+    var completedGameAvgScoreStr = "Average score: " + Math.floor(completedGameScoreSum / gamesCompleted) + '\n';
 
-    console.log("Daily report:");
-    console.log(gamesStartedAndNotCompletedStr);
-    console.log(gamesCompletedStr);
-    console.log(gamesStartedAndCompletedStr);
-    console.log(highestScoreStr);
-    console.log(highestScoreUsernameStr);
-    console.log(completedGameScoreSumStr);
-
+    var msgText = "Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr; 
+ 
+    console.log(msgText);
+    
+    Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
+    Mailgun.sendEmail({
+      to: "hamilton@fmigames.com",
+      from: "admin@fmigames.com",
+      subject: "Daily Report for Dance Off Games Played", 
+      text: msgText 
+    }, {
+      success: function(httpResponse) {
+        console.log(httpResponse);
+        response.success("Report Email sent!");
+      },
+      error: function(httpResponse) {
+        console.error(httpResponse);
+        response.error("Generate Report error while emailing report");
+      }
+    });
     response.success("Successfully completed generateReport.");
   }, function(error) {
 
@@ -201,7 +216,6 @@ Parse.Cloud.job("generateReport", function(request, response) {
 
     response.error("generateReport failed");
   });
-
 });
 
 
