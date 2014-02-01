@@ -126,6 +126,7 @@ Parse.Cloud.job("generateReport", function(request, response) {
   Parse.Cloud.useMasterKey();
 
   var Mailgun = require('mailgun');
+  Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
 
   var query = new Parse.Query("GameSubClass");
 
@@ -139,11 +140,6 @@ Parse.Cloud.job("generateReport", function(request, response) {
   var now = new Date(); // gets today
   var yesterday = new Date(now - 1000 * 60 * 60 * 24 * 1); 
   query.greaterThan("updatedAt", yesterday);
-
-  // query.equalTo("status", "challenged");
-  // query.notEqualTo("challengerFBId", fbId);
-  // query.equalTo("matchSemaphore", 0);
-  // query.equalTo("objectId", "htpDqGRI6Qa");
 
   query.each(function(game) {
        
@@ -188,27 +184,74 @@ Parse.Cloud.job("generateReport", function(request, response) {
     var highestScoreUsernameStr = "Highest score username: " + highestScoreUsername + '\n';
     var completedGameAvgScoreStr = "Average score: " + Math.floor(completedGameScoreSum / gamesCompleted) + '\n';
 
-    var msgText = "Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr; 
+    var gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr; 
  
-    console.log(msgText);
-    
-    Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
-    Mailgun.sendEmail({
-      to: "hamilton@fmigames.com",
-      from: "admin@fmigames.com",
-      subject: "Daily Report for Dance Off Games Played", 
-      text: msgText 
-    }, {
-      success: function(httpResponse) {
-        console.log(httpResponse);
-        response.success("Report Email sent!");
-      },
-      error: function(httpResponse) {
-        console.error(httpResponse);
-        response.error("Generate Report error while emailing report");
-      }
+    console.log(gameMsgText);
+
+    console.log("About to query users");
+    var usersTotal = 0;
+    var usersCreatedToday = 0;
+    var usersUpdatedToday = 0;
+    var usersGames = 0;
+    var usersExperience = 0;
+   
+    var query = new Parse.Query("User");
+
+    console.log("Querying users...");
+
+    query.each(function(user) {
+
+        var createdAt = user.createdAt;
+        var updatedAt = user.updatedAt;
+
+        usersTotal++;
+        if (createdAt > yesterday)
+          usersCreatedToday++;
+        if (updatedAt > yesterday)
+          usersUpdatedToday++;
+        if (user.get("games") > 0)
+          usersGames++;
+        if (user.get("experience") > 0)
+          usersExperience++;
+
+    }).then(function() {
+
+      // Set the job's success status
+      var usersTotalStr = "Users Total: " + usersTotal + '\n';
+      var usersCreatedTodayStr = "Users Created Today: " + usersCreatedToday + '\n';
+      var usersUpdatedTodayStr = "Users Updated Today: " + usersUpdatedToday + '\n';
+      var usersGamesStr = "Users Total Who Have Played At Least One Game: " + usersGames + '\n';
+      var usersExperienceStr = "Users Total Who Have Earned Experience Points: " + usersExperience + '\n';
+
+      var userMsgText = "User Daily Report: " + '\n' + usersTotalStr + usersCreatedTodayStr + usersUpdatedTodayStr + usersGamesStr + usersExperienceStr;
+   
+      console.log(userMsgText);
+
+      Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
+      Mailgun.sendEmail({
+        to: "hamilton@fmigames.com",
+        from: "admin@fmigames.com",
+        subject: "Daily Report for Dance Off Users and Games",
+        text: gameMsgText + '\n' + userMsgText
+      }, {
+        success: function(httpResponse) {
+          console.log(httpResponse);
+          response.success("Report Email sent!");
+        },
+        error: function(httpResponse) {
+          console.error(httpResponse);
+          response.error("Generate Report error while emailing report");
+        }
+      });
+      response.success("Successfully completed generateReport.");
+    }, function(error) {
+
+      // Set the job's error status
+      console.log("generateReport error");
+
+      response.error("generateReport failed");
     });
-    response.success("Successfully completed generateReport.");
+
   }, function(error) {
 
     // Set the job's error status
