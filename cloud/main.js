@@ -35,11 +35,11 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
 
-  var query = new Parse.Query("GameSubClass")
+  var query = new Parse.Query("Game")
   query.equalTo("status", "challenged");
   query.notEqualTo("challengerFBId", fbId);
   query.equalTo("matchSemaphore", 0);
-  // query.equalTo("objectId", "htpDqGRI6Qa");
+  query.equalTo("challengeeUsername", "");
   query.ascending("createdAt");
   query.limit(1);
 
@@ -47,12 +47,12 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
     success: function(results) {
       var match = results[0];
       if (match == null) {
-        return response.error("no game available");
+        return response.error("no game available 1");
       } else {
         match.increment("matchSemaphore", 1);
         match.save().then(function(result) {
           if (match == null || match.get("matchSemaphore") > 1) {
-            return response.error("no game available");
+            return response.error("no game available 2");
           } else {
             return response.success(match);
           }
@@ -60,7 +60,7 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
       }
     },
     error: function() {
-      response.error("no game available");
+      response.error("no game available 3");
     }
   });
 
