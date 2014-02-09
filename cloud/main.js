@@ -3,20 +3,20 @@
 
 function bonus(amount) {
   switch (amount) {
-    case 200:
-      return 200;
-    case 500:
-    case 525:
-      return 525;
-    case 1000:
-    case 1100:
-      return 1100;
-    case 2500:
-    case 2800:
-      return 2800;
+    case 2000:
+      return 2000;
     case 5000:
-    case 6500:
-      return 6500;
+    case 5250:
+      return 5250;
+    case 10000:
+    case 11000:
+      return 11000;
+    case 25000:
+    case 28000:
+      return 28000;
+    case 50000:
+    case 65000:
+      return 65000;
     default:
       return 0;
   }
@@ -40,6 +40,7 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
   query.notEqualTo("challengerFBId", fbId);
   query.equalTo("matchSemaphore", 0);
   query.equalTo("challengeeUsername", "");
+  query.doesNotExist("challengeeFBId"); // This will filter out any named challenges
   query.ascending("createdAt");
   query.limit(1);
 
@@ -87,7 +88,10 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
   Parse.Cloud.useMasterKey();
 
   var oldDollars, newDollars;
+  // var query = new Parse.Query("User");
   var query = new Parse.Query(Parse.User);
+
+  console.log("buyFacebookDD username=" + username + " query=" + query + " Parse.User=" + Parse.User);
 
   query.equalTo("username", username);
   query.each(function(user) {
@@ -108,6 +112,7 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
       transaction.set("dd_bought", quantityInt);
       transaction.set("dd_total", newDollars);
       transaction.set("username", username);
+      transaction.set("comment", "parse");
       transaction.save();
  
   }).then(function() {
@@ -145,7 +150,7 @@ function reportAll(response) {
   var gamesCompleted = 0;
   var gamesStartedAndCompleted = 0;
   var highestScore = 0;
-  var highestScoreUsername = "";
+  var highestScoreName = "";
   var completedGameScoreSum = 0;
   var gameMsgText = "";
 
@@ -159,18 +164,16 @@ function reportAll(response) {
 
       var status = game.get("status");
       var createdAt = game.createdAt;
-
+ 
       if (status == "completed") {
         gamesCompleted++;
         var challengerScore = game.get("challengerScore");
         var challengeeScore = game.get("challengeeScore");
 
-        if (challengerScore > highestScore) {
-          highestScore = challengerScore;
-          highestScoreUsername = game.get("challengerUsername");
-        } else if (challengeeScore > highestScore) {
-          highestScore = challengeeScore;
-          highestScoreUsername = game.get("challengeUsername");
+        if (challengerScore > highestScore || challengeeScore > highestScore) {
+          highestScore = game.get("winningScore");
+          highestScoreName = game.get("winnerName");
+          console.log("highestScoreName=" + highestScoreName);
         }
 
         if (challengerScore > 0 && challengeeScore > 0) {
@@ -192,10 +195,10 @@ function reportAll(response) {
     var gamesCompletedStr = "Games completed: " + gamesCompleted + '\n';
     var gamesStartedAndCompletedStr = "Games started and completed: " + gamesStartedAndCompleted + '\n';
     var highestScoreStr = "Highest score: " + highestScore + '\n';
-    var highestScoreUsernameStr = "Highest score username: " + highestScoreUsername + '\n';
+    var highestScoreNameStr = "Highest score name: " + highestScoreName + '\n';
     var completedGameAvgScoreStr = "Average score: " + Math.floor(completedGameScoreSum / gamesCompleted) + '\n';
 
-    gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreUsernameStr;
+    gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreNameStr;
 
     console.log(gameMsgText);
     reportTransactions(response, gameMsgText, now, yesterday);
@@ -308,7 +311,7 @@ function reportUsers(response, msgText, now, yesterday) {
       to: "admin@fmigames.com",
       from: "admin@fmigames.com",
       subject: "Daily Report for Dance Off Users and Games",
-      text: "Report Date: " + now + '\n' + msgText + '\n' + userMsgText
+      text: "Report Date: " + now + '\n\n' + msgText + '\n' + userMsgText
     }, {
       success: function(httpResponse) {
         console.log(httpResponse);

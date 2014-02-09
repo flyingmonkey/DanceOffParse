@@ -1,11 +1,11 @@
 {
     "applications": {
         "_default": {
-            "link": "testDance"
+            "link": "Dance Off"
         }, 
-        "testDance": {
-            "applicationId": "P81D5qUxaGxS7h6gpLI7vBruZuTh9Z5EA97hon15", 
-            "masterKey": "EFqM40fx4nU9bI8boJgiBZLHcIGzIjRnLJnetc6w"
+        "Dance Off": {
+            "applicationId": "2MzL6lh2p7l1P8dS6wjSo5YoJ2ota5ZUpul2StKH", 
+            "masterKey": "FwKdkbhkM4QnUEm3DuTUpzgfsZaMVDVUOlNAglkM"
         }
     }, 
     "global": {
