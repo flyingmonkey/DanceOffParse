@@ -27,10 +27,22 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
   console.log("entered test getRandomGame 2");
 
   var fbId = request.params.fb_id;
+  var level = request.params.level;
   var game = null;
 
   if (fbId == null)
     return response.error("Cloud call getRandomGame parameter fbId must be set.");
+
+  if (level == null)
+    return response.error("Cloud call getRandomGame parameter level must be set.");
+
+  var levelInt = parseInt(level);
+  var diff = 4;
+
+  if (levelInt > 50)
+      diff = 16;
+  else if (levelInt > 25)
+      diff = 6;
 
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
@@ -40,8 +52,12 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
   query.notEqualTo("challengerFBId", fbId);
   query.equalTo("matchSemaphore", 0);
   query.equalTo("challengeeUsername", "");
-  query.doesNotExist("challengeeFBId"); // This will filter out any named challenges
-  query.ascending("createdAt");
+  query.equalTo("challengeeFBId", ""); // This will filter out any named challenges
+
+  query.greaterThan("challengerLevel", levelInt - diff);
+  query.lessThan("challengerLevel", levelInt + diff);
+  // query.ascending("createdAt");
+
   query.limit(1);
 
   query.find({
@@ -221,6 +237,12 @@ function reportTransactions(response, msgText, now, yesterday) {
   var transSpentDD = 0;
   var transBoughtCount = 0;
   var transBoughtDD = 0;
+  var retryCount = 0;
+  var retryCost = 0;
+  var itemsCount = 0;
+  var itemsCost = 0;
+  var levelsCount = 0;
+  var levelsDDWon = 0;
 
   query.greaterThan("createdAt", yesterday);
 
@@ -228,6 +250,9 @@ function reportTransactions(response, msgText, now, yesterday) {
 
       var ddSpent = trans.get("dd_spent");
       var ddBought = trans.get("dd_bought"); 
+      var ddWin = trans.get("dd_win"); 
+      var comment = trans.get("comment");
+      var typeTrans = trans.get("type");
 
       if (ddSpent > 0) {
         transSpentCount++;
@@ -239,14 +264,36 @@ function reportTransactions(response, msgText, now, yesterday) {
         transBoughtDD += ddBought;
       }
 
+      if (comment == "retry") {
+        retryCount++;
+        retryCost += ddSpent;
+      } else if (comment == "buy item") {
+        itemsCount++;
+        itemsCost += ddSpent;
+      }
+
+      if (typeTrans == "win") {
+        levelsCount++;
+        levelsDDWon += ddSpent;
+      } 
+
   }).then(function() {
     // Set the job's success status
-    var transSpentCountStr = "Number of times Dance Dollars spent: " + transSpentCount + '\n'
-    var transSpentDDStr = "Total Dance Dollars spent: " + transSpentDD + '\n'
-    var transBoughtCountStr = "Number of times Dance Dollars bought: " + transBoughtCount + '\n'
-    var transBoughtDDStr = "Total Dance Dollars bought: " + transBoughtDD + '\n'
+    var transSpentCountStr = "Number of times Dance Dollars spent: " + transSpentCount + '\n';
+    var transSpentDDStr = "Total Dance Dollars spent: " + transSpentDD + '\n';
+    var transBoughtCountStr = "Number of times Dance Dollars bought: " + transBoughtCount + '\n';
+    var transBoughtDDStr = "Total Dance Dollars bought: " + transBoughtDD + '\n';
 
-    msgText = msgText + '\n' + "Transactions Daily Report: " + '\n' + transSpentCountStr + transSpentDDStr + transBoughtCountStr + transBoughtDDStr;
+    var retryCountStr = "Number of times users retried: " + retryCount + '\n';
+    var retryCostStr = "Average retry cost: " + (retryCost / retryCount) + '\n';
+
+    var itemsCountStr = "Number of times items purchased: " + itemsCount + '\n';
+    var itemsCostStr = "Average cost per item: " + Math.floor(itemsCost / itemsCount) + '\n';
+
+    var levelsCountStr = "Number of times user leveled up: " + levelsCount + '\n';
+    var levelsDDWonStr = "Total dance dollars won by users: " + levelsDDWon + '\n';
+
+    msgText = msgText + '\n' + "Transactions Daily Report: " + '\n' + transSpentCountStr + transSpentDDStr + transBoughtCountStr + transBoughtDDStr + retryCountStr + retryCostStr + itemsCountStr + itemsCostStr + levelsCountStr + levelsDDWonStr;
 
     console.log(msgText);
     reportUsers(response, msgText, now, yesterday);
