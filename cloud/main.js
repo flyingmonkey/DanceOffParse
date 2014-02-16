@@ -52,6 +52,7 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
   query.notEqualTo("challengerFBId", fbId);
   query.equalTo("matchSemaphore", 0);
   query.equalTo("challengeeUsername", "");
+  query.greaterThan("challengerScore", -1);
   query.equalTo("challengeeFBId", ""); // This will filter out any named challenges
 
   query.greaterThan("challengerLevel", levelInt - diff);
@@ -209,7 +210,8 @@ function reportAll(response) {
 
       var challengerScore = game.get("challengerScore");
       if (typeof challengerScore == "undefined") {
-        var recently = new Date(now - 1000 * 60 * 60 * 1 * 1);
+        var minutes = 10;
+        var recently = new Date(now - 1000 * 60 * minutes); // minutes ago
         if (createdAt < recently) {
           var gameId = game.id;
           var challengerFBId = game.get("challengerFBId");
