@@ -60,6 +60,7 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
 
   query.limit(1);
 
+  console.log("getRandomGame level of user=" + level);
   query.find({
     success: function(results) {
       var match = results[0];
@@ -67,6 +68,7 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
         return response.error("no game available 1");
       } else {
         match.increment("matchSemaphore", 1);
+        console.log("getRandomGame level of challengee for game matched = " + match.get("challengeeLevel"));
         match.save().then(function(result) {
           if (match == null || match.get("matchSemaphore") > 1) {
             return response.error("no game available 2");
@@ -205,6 +207,23 @@ function reportAll(response) {
         gamesStartedAndNotCompleted++;
       }
 
+      var challengerScore = game.get("challengerScore");
+      if (typeof challengerScore == "undefined") {
+        var gameId = game.id;
+        var challengerFBId = game.get("challengerFBId");
+        var challengerComment = game.get("challengerComment");
+
+        console.log("Found game to delete with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
+
+        game.destroy({
+          success:function() {
+            console.log("Deleted game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
+          },
+          error:function(error) {
+            console.log("Failed to delete game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
+          }
+        });
+      }
   }).then(function() {
     // Set the job's success status
     var gamesStartedAndNotCompletedStr = "Games started but not completed: " + gamesStartedAndNotCompleted + '\n';
@@ -378,3 +397,4 @@ function reportUsers(response, msgText, now, yesterday) {
     response.error("generateReport failed");
   });
 }
+
