@@ -209,20 +209,23 @@ function reportAll(response) {
 
       var challengerScore = game.get("challengerScore");
       if (typeof challengerScore == "undefined") {
-        var gameId = game.id;
-        var challengerFBId = game.get("challengerFBId");
-        var challengerComment = game.get("challengerComment");
+        var recently = new Date(now - 1000 * 60 * 60 * 1 * 1);
+        if (createdAt < recently) {
+          var gameId = game.id;
+          var challengerFBId = game.get("challengerFBId");
+          var challengerComment = game.get("challengerComment");
 
-        console.log("Found game to delete with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
+          console.log("Found game to delete with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
 
-        game.destroy({
-          success:function() {
-            console.log("Deleted game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
-          },
-          error:function(error) {
-            console.log("Failed to delete game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
-          }
-        });
+          game.destroy({
+            success:function() {
+              console.log("Deleted game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
+            },
+            error:function(error) {
+              console.log("Failed to delete game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
+            }
+          });
+        }
       }
   }).then(function() {
     // Set the job's success status
