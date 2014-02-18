@@ -101,6 +101,8 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
   if (fbPaymentId == null)
     return response.error("Cloud call buyFacebookDD parameter fb_payment_id must be set.");
 
+  // TODO Verify FP Payment ID matches FB ID
+
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
 
@@ -108,28 +110,7 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
   // var query = new Parse.Query("User");
   var query = new Parse.Query(Parse.User);
 
-  console.log("buyFacebookDD username=" + username + " quantity=" + quantity + " fbPaymentId=" + fbPaymentId + " query=" + query + " Parse.User=" + Parse.User);
-
-
-  // https://graph.facebook.com/421198268010875?access_token=425496064247467|JH0bOdJdZ8AABGan2an8HoMuJSQ
-  // Note: Log if purchase does not pass Facebook verification crediting Dance $ contingent upon successfully verifying Facebook purchase ID
-
-  console.log("buyFacebookDD about to check https://graph.facebook.com/" + fbPaymentId + "?access_token=");
-
-  Parse.Cloud.httpRequest({
-    url: "https://graph.facebook.com/" + fbPaymentId,
-    params: {
-      access_token: '425496064247467|JH0bOdJdZ8AABGan2an8HoMuJSQ'
-    },
-    success: function(httpResponse) {
-      console.log("buyFacebookDD SUCCESS...");
-      console.log("buyFacebookDD SUCCESS paymentId verification for fb_payment_id = " + fbPaymentId + " for username = " + username + " for quantity=" + quantity + " with http response=" + httpResponse.text);
-    },
-    error: function(httpResponse) {
-      console.warn("buyFacebookDD FAILED...");
-      console.warn("buyFacebookDD FAILED paymentId verification for fb_payment_id = " + fbPaymentId + " for username = " + username + " for quantity=" + quantity + " with http response=" + httpResponse.status);
-    }
-  });
+  console.log("buyFacebookDD username=" + username + " query=" + query + " Parse.User=" + Parse.User);
 
   query.equalTo("username", username);
   query.each(function(user) {
@@ -139,7 +120,6 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
       oldDollars = user.get("dollars");
       var quantityInt = parseInt(quantity);
       newDollars = oldDollars + bonus(quantityInt);
-      var name = user.get("name");
 
       user.set("dollars", newDollars);
       user.save();
@@ -151,7 +131,6 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
       transaction.set("dd_bought", quantityInt);
       transaction.set("dd_total", newDollars);
       transaction.set("username", username);
-      transaction.set("name", name);
       transaction.set("comment", "parse");
       transaction.save();
  
@@ -186,17 +165,13 @@ Parse.Cloud.job("generateReport", function(request, response) {
 function reportAll(response) {
   var query = new Parse.Query("Game");
 
-  var gamesChallengedState = 0;
+  var gamesStartedAndNotCompleted = 0;
   var gamesCompleted = 0;
   var gamesStartedAndCompleted = 0;
   var highestScore = 0;
   var highestScoreName = "";
   var completedGameScoreSum = 0;
   var gameMsgText = "";
-  var gamesWithoutSongSet = 0;
-  var gamesWithoutDanceMovesSet = 0;
-  var randomGamesCompleted = 0;
-  var gamesWithChallengeeStartedStatus = 0;
 
   var now = new Date(); // gets today
   var yesterday = new Date(now - 1000 * 60 * 60 * 24 * 1);
@@ -229,27 +204,10 @@ function reportAll(response) {
 
         if (createdAt > yesterday)
           gamesStartedAndCompleted++;
-
-        var matchSemaphore = game.get("matchSemaphore");
-        if (matchSemaphore == 1 || matchSemaphore == 2)
-          randomGamesCompleted++;
-
       } else if (status == "challenged") {
-        gamesChallengedState++;
-      } else if (status = "challengee_started") {
-        gamesWithChallengeeStartedStatus++;
+        gamesStartedAndNotCompleted++;
       }
 
-      var songURL = game.get("songURL");
-      if (typeof songURL == "undefined") {
-        gamesWithoutSongSet++;
-      }
-
-      var danceCombo = game.get("danceCombo");
-      if (danceCombo.length == 0) {
-        gamesWithoutDanceMovesSet++;
-      }
- 
       var challengerScore = game.get("challengerScore");
       if (typeof challengerScore == "undefined") {
         var minutes = 10;
@@ -260,7 +218,7 @@ function reportAll(response) {
           var challengerComment = game.get("challengerComment");
 
           console.log("Found game to delete with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
-/*
+
           game.destroy({
             success:function() {
               console.log("Deleted game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
@@ -269,23 +227,18 @@ function reportAll(response) {
               console.log("Failed to delete game with id " + gameId + " and challengerFBId " + challengerFBId + " and challenger score=" + challengerScore + " and challengerComment " + challengerComment);
             }
           });
-*/
         }
       }
   }).then(function() {
     // Set the job's success status
-    var gamesChallengedStateStr = "Games challenged state: " + gamesChallengedState + '\n';
-    var gamesWithoutSongSetStr = "Games without song set: " + gamesWithoutSongSet + '\n';
-    var gamesWithoutDanceMovesSetStr = "Games without dance moves set: " + gamesWithoutDanceMovesSet + '\n';
-    var gamesWithChallengeeStartedStatusStr = "Games with challenge_started status: " + gamesWithChallengeeStartedStatus + '\n';
-    var randomGamesCompletedStr = "Random games completed: " + randomGamesCompleted + '\n';
+    var gamesStartedAndNotCompletedStr = "Games started but not completed: " + gamesStartedAndNotCompleted + '\n';
     var gamesCompletedStr = "Games completed: " + gamesCompleted + '\n';
     var gamesStartedAndCompletedStr = "Games started and completed: " + gamesStartedAndCompleted + '\n';
     var highestScoreStr = "Highest score: " + highestScore + '\n';
     var highestScoreNameStr = "Highest score name: " + highestScoreName + '\n';
     var completedGameAvgScoreStr = "Average score: " + Math.floor(completedGameScoreSum / gamesCompleted) + '\n';
 
-    gameMsgText = "Games Daily Report: " + '\n' + gamesChallengedStateStr + gamesWithoutSongSetStr + gamesWithoutDanceMovesSetStr + gamesWithChallengeeStartedStatusStr + randomGamesCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreNameStr;
+    gameMsgText = "Games Daily Report: " + '\n' + gamesStartedAndNotCompletedStr + gamesCompletedStr + gamesStartedAndCompletedStr + completedGameAvgScoreStr + highestScoreStr+ highestScoreNameStr;
 
     console.log(gameMsgText);
     reportTransactions(response, gameMsgText, now, yesterday);
@@ -314,14 +267,9 @@ function reportTransactions(response, msgText, now, yesterday) {
   var itemsCost = 0;
   var levelsCount = 0;
   var levelsDDWon = 0;
-  var purchasers = "";
 
   query.greaterThan("createdAt", yesterday);
-  query.notEqualTo("username", "r5ce3qrr1dc6tsll8s1f48iaw");
-  query.notEqualTo("username", "fqneoqobc9b56tzhqbmk69hoe");
-  query.notEqualTo("username", "njr79yo0xdzcqwd80gw5ovvej");
-  query.notEqualTo("username", "i6juedt8xn6h7oa59ob0lceo");
-  query.notEqualTo("username", "tivvvv09sm3x758zywnkf5b3m");
+
   query.each(function(trans) {
 
       var ddSpent = trans.get("dd_spent");
@@ -329,33 +277,30 @@ function reportTransactions(response, msgText, now, yesterday) {
       var ddWin = trans.get("dd_win"); 
       var comment = trans.get("comment");
       var typeTrans = trans.get("type");
-      var username = trans.get("username");
 
-      if (username != "njr79yo0xdzcqwd80gw5ovvej") {
-        if (ddSpent > 0) {
-          transSpentCount++;
-          transSpentDD += ddSpent;
-        }
-
-        if (ddBought > 0) {
-          transBoughtCount++;
-          transBoughtDD += ddBought;
-          purchasers = purchasers + '\n' + " user " + trans.get("name") + " (" + trans.get("username") + ") bought " + ddBought + " dd";
-        }
-
-        if (comment == "retry") {
-          retryCount++;
-          retryCost += ddSpent;
-        } else if (comment == "buy item") {
-          itemsCount++;
-          itemsCost += ddSpent;
-        }
-
-        if (typeTrans == "win") {
-          levelsCount++;
-          levelsDDWon += ddSpent;
-        } 
+      if (ddSpent > 0) {
+        transSpentCount++;
+        transSpentDD += ddSpent;
       }
+
+      if (ddBought > 0) {
+        transBoughtCount++;
+        transBoughtDD += ddBought;
+      }
+
+      if (comment == "retry") {
+        retryCount++;
+        retryCost += ddSpent;
+      } else if (comment == "buy item") {
+        itemsCount++;
+        itemsCost += ddSpent;
+      }
+
+      if (typeTrans == "win") {
+        levelsCount++;
+        levelsDDWon += ddSpent;
+      } 
+
   }).then(function() {
     // Set the job's success status
     var transSpentCountStr = "Number of times Dance Dollars spent: " + transSpentCount + '\n';
@@ -372,8 +317,7 @@ function reportTransactions(response, msgText, now, yesterday) {
     var levelsCountStr = "Number of times user leveled up: " + levelsCount + '\n';
     var levelsDDWonStr = "Total dance dollars won by users: " + levelsDDWon + '\n';
 
-    msgText = msgText + '\n' + "Transactions Daily Report (Ben, Chris & Hamilton filtered out): " + '\n' + transSpentCountStr + transSpentDDStr + transBoughtCountStr + transBoughtDDStr + retryCountStr + retryCostStr + itemsCountStr + itemsCostStr + levelsCountStr + levelsDDWonStr;
-    msgText = msgText + '\nPurchasers:\n' +  purchasers + '\n\n';
+    msgText = msgText + '\n' + "Transactions Daily Report: " + '\n' + transSpentCountStr + transSpentDDStr + transBoughtCountStr + transBoughtDDStr + retryCountStr + retryCostStr + itemsCountStr + itemsCostStr + levelsCountStr + levelsDDWonStr;
 
     console.log(msgText);
     reportUsers(response, msgText, now, yesterday);
@@ -436,7 +380,6 @@ function reportUsers(response, msgText, now, yesterday) {
     Mailgun.initialize('strangelings.mailgun.org', 'key-0rhtp5nputxn66-sl3e8o822i943up88');
     Mailgun.sendEmail({
       to: "admin@fmigames.com",
-      // to: "hamilton@fmigames.com", // Testing email
       from: "admin@fmigames.com",
       subject: "Daily Report for Dance Off Users and Games",
       text: "Report Date: " + now + '\n\n' + msgText + '\n' + userMsgText
