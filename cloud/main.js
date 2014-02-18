@@ -3,20 +3,20 @@
 
 function bonus(amount) {
   switch (amount) {
-    case 2000:
-      return 2000;
+    case 200:
+      return 200;
+    case 500:
+    case 525:
+      return 525;
+    case 1000:
+    case 1100:
+      return 1100;
+    case 2500:
+    case 2800:
+      return 2800;
     case 5000:
-    case 5250:
-      return 5250;
-    case 10000:
-    case 11000:
-      return 11000;
-    case 25000:
-    case 28000:
-      return 28000;
-    case 50000:
-    case 65000:
-      return 65000;
+    case 6500:
+      return 6500;
     default:
       return 0;
   }
