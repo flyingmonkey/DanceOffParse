@@ -101,8 +101,6 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
   if (fbPaymentId == null)
     return response.error("Cloud call buyFacebookDD parameter fb_payment_id must be set.");
 
-  // TODO Verify FP Payment ID matches FB ID
-
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
 
@@ -110,7 +108,28 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
   // var query = new Parse.Query("User");
   var query = new Parse.Query(Parse.User);
 
-  console.log("buyFacebookDD username=" + username + " query=" + query + " Parse.User=" + Parse.User);
+  console.log("buyFacebookDD username=" + username + " quantity=" + quantity + " fbPaymentId=" + fbPaymentId + " query=" + query + " Parse.User=" + Parse.User);
+
+
+  // https://graph.facebook.com/421198268010875?access_token=425496064247467|JH0bOdJdZ8AABGan2an8HoMuJSQ
+  // Note: Log if purchase does not pass Facebook verification crediting Dance $ contingent upon successfully verifying Facebook purchase ID
+
+  console.log("buyFacebookDD about to check https://graph.facebook.com/" + fbPaymentId + "?access_token=");
+
+  Parse.Cloud.httpRequest({
+    url: "https://graph.facebook.com/" + fbPaymentId,
+    params: {
+      access_token: '425496064247467|JH0bOdJdZ8AABGan2an8HoMuJSQ'
+    },
+    success: function(httpResponse) {
+      console.log("buyFacebookDD SUCCESS...");
+      console.log("buyFacebookDD SUCCESS paymentId verification for fb_payment_id = " + fbPaymentId + " for username = " + username + " for quantity=" + quantity + " with http response=" + httpResponse.text);
+    },
+    error: function(httpResponse) {
+      console.warn("buyFacebookDD FAILED...");
+      console.warn("buyFacebookDD FAILED paymentId verification for fb_payment_id = " + fbPaymentId + " for username = " + username + " for quantity=" + quantity + " with http response=" + httpResponse.status);
+    }
+  });
 
   query.equalTo("username", username);
   query.each(function(user) {
