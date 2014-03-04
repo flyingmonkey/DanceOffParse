@@ -37,12 +37,14 @@ Parse.Cloud.define("getRandomGame", function(request, response) {
     return response.error("Cloud call getRandomGame parameter level must be set.");
 
   var levelInt = parseInt(level);
-  var diff = 4;
+  var diff = 3;
 
   if (levelInt > 50)
       diff = 16;
   else if (levelInt > 25)
       diff = 6;
+  else if (levelInt > 9)
+      diff = 4;
 
   // Set up to modify user data
   Parse.Cloud.useMasterKey();
