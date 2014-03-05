@@ -107,11 +107,9 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
   Parse.Cloud.useMasterKey();
 
   var oldDollars, newDollars;
-  // var query = new Parse.Query("User");
   var query = new Parse.Query(Parse.User);
 
   console.log("buyFacebookDD username=" + username + " quantity=" + quantity + " fbPaymentId=" + fbPaymentId + " query=" + query + " Parse.User=" + Parse.User);
-
 
   // https://graph.facebook.com/421198268010875?access_token=425496064247467|JH0bOdJdZ8AABGan2an8HoMuJSQ
   // Note: Log if purchase does not pass Facebook verification crediting Dance $ contingent upon successfully verifying Facebook purchase ID
@@ -172,6 +170,112 @@ Parse.Cloud.define("buyFacebookDD", function(request, response) {
 
     response.error("Was not able to update Dance Dollars.");
   });
+});
+
+Parse.Cloud.define("buyIOSDD", function(request, response) {
+
+  var quantity = request.params.quantity;
+  var username = request.params.username;
+  var receipt = request.params.receipt;
+
+  if (quantity == null)
+    return response.error("Cloud call buyIOSDD parameter quantity must be set.");
+
+  if (username == null)
+    return response.error("Cloud call buyIOSDD parameter username must be set.");
+
+  if (receipt == null)
+    return response.error("Cloud call buyIOSDD parameter receipt must be set.");
+
+  // Set up to modify user data
+  Parse.Cloud.useMasterKey();
+
+  var oldDollars, newDollars;
+  console.log("buyIOSDD username=" + username + " quantity=" + quantity + " receipt=" + receipt + " query=" + query + " Parse.User=" + Parse.User);
+
+  // https://graph.facebook.com/421198268010875?access_token=425496064247467|JH0bOdJdZ8AABGan2an8HoMuJSQ
+  // Note: Log if purchase does not pass Facebook verification crediting Dance $ contingent upon successfully verifying Facebook purchase ID
+
+  var iTunesHost = "https://buy.itunes.apple.com/verifyReceipt";
+  var iTunesHostSandbox = "https://sandbox.itunes.apple.com/verifyReceipt"
+
+  var bodyStr = "{\"receipt-data\":\"" + receipt + "\"}";
+
+  console.log("bodyStr=" + bodyStr);
+
+  // url: iTunesHostSandbox,
+      // 1. Make sure status == 0
+      // 2. Make sure receipt is not missing
+      // 3. get the receipt product_id
+      // 4. split the product parts of product_id
+      // 5. Extract the quantity and use instead of quantity passed in
+
+      // console.log("buyIOSDD SUCCESS paymentId verification for receipt = " + receipt + " for username = " + username + " for quantity=" + quantity + " with http response=" + httpResponse.text);
+      // console.warn("buyIOSDD FAILED payment verification for receipt = " + receipt + " for username = " + username + " for quantity=" + quantity + " with http response=" + httpResponse.status);
+      // console.log("buyIOSDD SUCCESS response.status=" + httpResponse.status);
+      // console.log("buyIOSDD SUCCESS response.text=" + httpResponse.text);
+
+  console.log("buyIOSDD about to call Parse.Cloud.httpRequest");
+  Parse.Cloud.httpRequest({
+    method: 'POST',
+    url: 'https://buy.itunes.apple.com/verifyReceipt',
+//    headers: {
+//      'Content-Type': 'application/json',
+//    },
+    body: {
+      'receipt-data': receipt
+    },
+    success: function(httpResponse) {
+      console.log("buyIOSDD SUCCESS...");
+    },
+    error: function(httpResponse) {
+      console.warn("buyIOSDD FAILED...");
+    }
+  });
+  console.log("buyIOSDD called Parse.Cloud.httpRequest");
+
+  var query = new Parse.Query(Parse.User);
+  query.equalTo("username", username);
+  query.each(function(user) {
+
+      console.log("Found user " + user + " with id=" + user.id);
+
+      oldDollars = user.get("dollars");
+      var quantityInt = quantity; // parseInt(quantityStr);
+      newDollars = oldDollars + bonus(quantityInt);
+      var name = user.get("name");
+
+      user.set("dollars", newDollars);
+      user.save();
+
+      var Transaction = Parse.Object.extend("Transaction");
+      var transaction = new Transaction();
+      transaction.set("type", "purchase_ios");
+      transaction.set("dd_spent", 0); 
+      transaction.set("dd_bought", quantityInt);
+      transaction.set("dd_total", newDollars);
+      transaction.set("username", username);
+      transaction.set("name", name);
+      transaction.set("comment", "parse");
+      transaction.save();
+
+      console.log("buyIOSDD wrote transaction"); 
+  }).then(function() {
+
+    // Set the job's success status
+    newDollars = newDollars.toString();
+    response.success(newDollars.toString());
+
+    console.log("buyIOSDD, Found username=" + username + "  who purchased " + quantity + " dollars and had " + oldDollars + " and now has " + newDollars + " new dollars");
+
+  }, function(error) {
+
+    // Set the job's error status
+    console.log("buyIOSDD got error while updating users dollars");
+
+    response.error("Was not able to update Dance Dollars.");
+  });
+  console.log("buyIOSDD returning");
 });
 
 Parse.Cloud.job("generateReport", function(request, response) {
